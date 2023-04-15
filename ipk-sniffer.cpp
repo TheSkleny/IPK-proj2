@@ -120,6 +120,8 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    
+
     if (pcap_descriptor = open_pcap_socket(interface, filter)) {
         
     }
