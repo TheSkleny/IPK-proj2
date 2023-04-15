@@ -24,6 +24,9 @@ using namespace std;
      : (optarg != NULL))
 
 
+
+
+
 int main(int argc, char* argv[]) {
 
     static struct option long_options[] = {
@@ -46,8 +49,7 @@ int main(int argc, char* argv[]) {
     // Set default values
     string interface_name = "";
     int port = -1;
-    int protocol = -1;
-    bool arp = false, icmp4 = false, icmp6 = false, igmp = false, mld = false;
+    bool arp = false, icmp4 = false, icmp6 = false, igmp = false, mld = false, tcp = false, udp = false;
     int num = 1;
     while ((opt = getopt_long(argc, argv, "i::p:tua46gmn:", long_options, &option_index)) != -1) {
         //cout << "option: " << static_cast<char>(opt) << endl;
@@ -61,10 +63,10 @@ int main(int argc, char* argv[]) {
             port = atoi(optarg);
             break;
         case 't':
-            protocol = IPPROTO_TCP;
+            tcp = true;
             break;
         case 'u':
-            protocol = IPPROTO_UDP;
+            udp = true;
             break;
         case 'a':
             arp = true;
@@ -98,7 +100,7 @@ int main(int argc, char* argv[]) {
             cerr << "Unknown option: " << static_cast<char>(optopt) << endl;
             break;
         }
-        
+
     }
     if (interface_name == "" || argc == 1) {
         char error_buffer[PCAP_ERRBUF_SIZE];
@@ -118,16 +120,16 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // Print out the parsed arguments
-    cout << "interface: " << interface_name << endl;
-    cout << "port: " << port << endl;
-    cout << "protocol: " << protocol << endl;
-    cout << "arp: " << arp << endl;
-    cout << "icmp4: " << icmp4 << endl;
-    cout << "icmp6: " << icmp6 << endl;
-    cout << "igmp: " << igmp << endl;
-    cout << "mld: " << mld << endl;
-    cout << "num: " << num << endl;
+    if (pcap_descriptor = open_pcap_socket(interface, filter)) {
+        
+    }
+    // Capture packets and analyze them
+    pcap_loop(handle, num, analyze_packet, reinterpret_cast<u_char*>(&port));
+
+    // Close the packet capture handle
+    pcap_close(handle);
+
+
 
     return 0;
 }
