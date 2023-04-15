@@ -34,6 +34,7 @@ int main(int argc, char *argv[]) {
         printf("Error finding device: %s\n", error_buffer);
         return 1;
     }
+    
 
     printf("Network device found: %s\n", device);
     return 0;
