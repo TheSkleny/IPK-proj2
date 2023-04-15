@@ -2,9 +2,16 @@
 // Author: David Sklenář - xsklen14
 // Date: 2023/03/27
 
+#include <getopt.h>
+#include <signal.h>
 #include <iostream>
 #include <string>
 #include <pcap.h>
+#include <arpa/inet.h>
+#include <netinet/tcp.h>
+#include <netinet/ip_icmp.h>
+#include <netinet/ether.h>
+#include <netinet/ip6.h>
 
 
 using namespace std;
