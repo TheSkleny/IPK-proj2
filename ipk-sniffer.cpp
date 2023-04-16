@@ -106,10 +106,10 @@ string create_filter(options_t options){
     if (options.tcp != "") {
         if (options.port != -1) {
             if (first) {
-                filter += "(tcp and port " + to_string(options.port) + ")";
+                filter += "(tcp port " + to_string(options.port) + ")";
                 first = false;
             } else {
-                filter += " or (tcp and port " + to_string(options.port) + ")";
+                filter += " or (tcp port " + to_string(options.port) + ")";
             }
         } else {
             if (first) {
@@ -123,10 +123,10 @@ string create_filter(options_t options){
     if (options.udp != "") {
         if (options.port != -1) {
             if (first) {
-                filter += "(udp and port " + to_string(options.port) + ")";
+                filter += "(udp port " + to_string(options.port) + ")";
                 first = false;
             } else {
-                filter += " or (udp and port " + to_string(options.port) + ")";
+                filter += " or (udp port " + to_string(options.port) + ")";
             }
         } else {
             if (first) {
@@ -308,7 +308,7 @@ int main(int argc, char* argv[]) {
     if (options.tcp == "" && options.udp == "" && options.arp == "" && 
         options.icmp4 == "" && options.icmp6 == "" && options.igmp == "" && 
         options.mld == "" && options.ndp == "") {
-        filter = "tcp or udp or arp or icmp4 or icmp6 or igmp or mld or ndp";
+        filter = "tcp or udp or arp or icmp or icmp6 or igmp or (icmp6 and icmp6[0] == 143) or (icmp6 and (icmp6[0] == 135 or icmp6[0] == 136 or icmp6[0] == 137))";
     }
     else {
         filter = create_filter(options);
