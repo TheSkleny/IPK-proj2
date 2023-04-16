@@ -57,7 +57,96 @@ pcap_t* create_pcap_handle(char* device, char* filter) {
 }
 
 void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_char *packetptr) {
-    
+    cout << "Packet captured pico" << endl;
+}
+
+string create_filter(options_t options){
+    string filter = "";
+    bool first = true;
+    if (options.arp != "") {
+        if (first) {
+            filter += "arp";
+            first = false;
+        } else {
+            filter += " or arp";
+        }
+    }
+    if (options.icmp4 != "") {
+        if (first) {
+            filter += "icmp";
+            first = false;
+        } else {
+            filter += " or icmp";
+        }
+    }
+    if (options.icmp6 != "") {
+        if (first) {
+            filter += "icmp6";
+            first = false;
+        } else {
+            filter += " or icmp6";
+        }
+    }
+    if (options.igmp != "") {
+        if (first) {
+            filter += "igmp";
+            first = false;
+        } else {
+            filter += " or igmp";
+        }
+    }
+    if (options.mld != "") {
+        if (first) {
+            filter += "(icmp6 and icmp6[0] == 143)";
+            first = false;
+        } else {
+            filter += " or (icmp6 and icmp6[0] == 143)";
+        }
+    }
+    if (options.tcp != "") {
+        if (options.port != -1) {
+            if (first) {
+                filter += "(tcp and port " + to_string(options.port) + ")";
+                first = false;
+            } else {
+                filter += " or (tcp and port " + to_string(options.port) + ")";
+            }
+        } else {
+            if (first) {
+                filter += "tcp";
+                first = false;
+            } else {
+                filter += " or tcp";
+            }
+        }
+    }
+    if (options.udp != "") {
+        if (options.port != -1) {
+            if (first) {
+                filter += "(udp and port " + to_string(options.port) + ")";
+                first = false;
+            } else {
+                filter += " or (udp and port " + to_string(options.port) + ")";
+            }
+        } else {
+            if (first) {
+                filter += "udp";
+                first = false;
+            } else {
+                filter += " or udp";
+            }
+        }
+    }
+    if (options.ndp != "") {
+        if (first) {
+            filter += "(icmp6 and (icmp6[0] == 135 or icmp6[0] == 136 or icmp6[0] == 137))";
+            first = false;
+        } else {
+            filter += " or (icmp6 and (icmp6[0] == 135 or icmp6[0] == 136 or icmp6[0] == 137))";
+        }
+    }
+    return filter;
+
 }
 
 int main(int argc, char* argv[]) {
@@ -101,41 +190,77 @@ int main(int argc, char* argv[]) {
             }
             break;
         case 'p':
+            if (options.port != -1) {
+                cerr << "Error: Port is already set." << endl;
+                return 1;
+            }
             options.port = atoi(optarg);
             break;
         case 't':
-            options.tcp = "tcp ";
+            if (options.tcp != "") {
+                cerr << "Error: TCP is already set." << endl;
+                return 1;
+            }
+            options.tcp = "tcp";
             break;
         case 'u':
-            options.udp = "udp ";
+            if (options.udp != "") {
+                cerr << "Error: UDP is already set." << endl;
+                return 1;
+            }
+            options.udp = "udp";
             break;
         case 'a':
-            options.arp = "arp ";
+            if (options.arp != "") {
+                cerr << "Error: ARP is already set." << endl;
+                return 1;
+            }
+            options.arp = "arp";
             break;
         case '4':
-            options.icmp4 = "icmp4 ";
+            if (options.icmp4 != "") {
+                cerr << "Error: ICMP4 is already set." << endl;
+                return 1;
+            }
+            options.icmp4 = "icmp4";
             break;
         case '6':
-            options.icmp6 = "icmp6 ";
+            if (options.icmp6 != "") {
+                cerr << "Error: ICMP6 is already set." << endl;
+                return 1;
+            }
+            options.icmp6 = "icmp6";
             break;
         case 'g':
-            options.igmp = "igmp ";
+            if (options.igmp != "") {
+                cerr << "Error: IGMP is already set." << endl;
+                return 1;
+            }
+            options.igmp = "igmp";
             break;
         case 'm':
-            options.mld = "mld ";
+            if (options.mld != "") {
+                cerr << "Error: MLD is already set." << endl;
+                return 1;
+            }
+            options.mld = "mld";
             break;
         case 'd':
-            options.ndp = "ndp ";
+            if (options.ndp != "") {
+                cerr << "Error: NDP is already set." << endl;
+                return 1;
+            }
+            options.ndp = "ndp";
             break;
         case 'n':
+            if (options.num != 1) {
+                cerr << "Error: Number of packets is already set." << endl;
+                return 1;
+            }
             options.num = atoi(optarg);
             break;
         case ':':
-            if (optopt == 'i') {
-                options.interface_name = "";
-            } else {
-                cerr << "Option requires an argument: " << static_cast<char>(optopt) << endl;
-            }
+            cerr << "Option requires an argument: " << static_cast<char>(optopt) << endl;
             break;
         case '?':
             cerr << "Invalid option: " << static_cast<char>(optopt) << endl;
@@ -170,9 +295,25 @@ int main(int argc, char* argv[]) {
         cerr << "Invalid port number: " << options.port << endl;
         return 1;
     }
+    if (options.port != -1 && (options.tcp == "" && options.udp == "")) {
+        cerr << "Port number is set but no protocol is set." << endl;
+        return 1;
+    }
 
+    if (options.num < 0 && options.num != -1) {
+        cerr << "Invalid number of packets: " << options.num << endl;
+        return 1;
+    }
 
-    filter = options.arp + options.icmp4 + options.icmp6 + options.igmp + options.mld + options.tcp + options.udp + options.ndp;
+    if (options.tcp == "" && options.udp == "" && options.arp == "" && 
+        options.icmp4 == "" && options.icmp6 == "" && options.igmp == "" && 
+        options.mld == "" && options.ndp == "") {
+        filter = "tcp or udp or arp or icmp4 or icmp6 or igmp or mld or ndp";
+    }
+    else {
+        filter = create_filter(options);
+    }
+    cout << "Filter: " << filter << endl;
     
     handle = create_pcap_handle((char *)options.interface_name.c_str(), (char *)filter.c_str());
     if(handle == NULL) {
