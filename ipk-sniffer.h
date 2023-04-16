@@ -13,7 +13,8 @@
 
 using namespace std;
 
-// stolen from https://stackoverflow.com/questions/1052746/getopt-does-not-parse-optional-arguments-to-parameters
+// SOURCE: https://stackoverflow.com/questions/1052746/getopt-does-not-parse-optional-arguments-to-parameters
+// AUTHOR: https://stackoverflow.com/users/12979602/larsewi
 #define OPTIONAL_ARGUMENT_IS_PRESENT \
     ((optarg == NULL && optind < argc && argv[optind][0] != '-') \
      ? (bool) (optarg = argv[optind++]) \
@@ -28,3 +29,4 @@ typedef struct {
 } options_t;
 
 options_t options;
+pcap_t* handle;

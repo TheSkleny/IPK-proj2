@@ -7,11 +7,20 @@
 
 void signal_handler(int signum) {
     // Terminate program
+    pcap_close(handle);
     exit(signum);
 }
 
-pcap_t* create_pcap_handle(char* device, char* filter)
-{
+
+/*
+    * Function for creating libpcap handle.
+    * @param device - network interface name
+    * @param filter - packet filter expression
+    * @return pcap_t* - libpcap handle
+    * @return NULL - error
+    * @source - https://vichargrave.github.io/programming/develop-a-packet-sniffer-with-libpcap/#build-and-run-the-sniffer
+*/
+pcap_t* create_pcap_handle(char* device, char* filter) {
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t *handle = NULL;
     pcap_if_t* devices = NULL;
@@ -19,18 +28,9 @@ pcap_t* create_pcap_handle(char* device, char* filter)
     bpf_u_int32 netmask;
     bpf_u_int32 srcip;
 
-    // If no network interface (device) is specfied, get the first one.
-    if (!*device) {
-    	if (pcap_findalldevs(&devices, errbuf)) {
-            cerr << "pcap_findalldevs(): " << errbuf << endl;
-            return NULL;
-        }
-        strcpy(device, devices[0].name);
-    }
-
     // Get network device source IP address and netmask.
     if (pcap_lookupnet(device, &srcip, &netmask, errbuf) == PCAP_ERROR) {
-        cerr << "pcap_lookupnet: " << errbuf << endl;
+        cerr << "pcap_lookupnet(): " << errbuf << endl;
         return NULL;
     }
 
@@ -56,6 +56,9 @@ pcap_t* create_pcap_handle(char* device, char* filter)
     return handle;
 }
 
+void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_char *packetptr) {
+    
+}
 
 int main(int argc, char* argv[]) {
     string filter = "";
@@ -143,7 +146,7 @@ int main(int argc, char* argv[]) {
         }
 
     }
-    if (options.interface_name == "" || argc == 1) {
+    if (options.interface_name == "") {
         char error_buffer[PCAP_ERRBUF_SIZE];
         pcap_if_t* all_interfaces;
         if (pcap_findalldevs(&all_interfaces, error_buffer) == -1) {
@@ -171,10 +174,18 @@ int main(int argc, char* argv[]) {
 
     filter = options.arp + options.icmp4 + options.icmp6 + options.igmp + options.mld + options.tcp + options.udp + options.ndp;
     
-    
-    pcap_t* handle = create_pcap_handle((char *)options.interface_name.c_str(), (char *)filter.c_str());
+    handle = create_pcap_handle((char *)options.interface_name.c_str(), (char *)filter.c_str());
+    if(handle == NULL) {
+        return 1;
+    }
     
 
 
+    if (pcap_loop(handle, options.num, packet_handler, (u_char*)NULL) < 0) {
+        cerr << "pcap_loop failed:" << pcap_geterr(handle) << endl;
+	    return -1;
+    }
+
+    pcap_close(handle);
     return 0;
 }
