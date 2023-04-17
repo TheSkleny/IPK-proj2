@@ -8,6 +8,7 @@
 #include <pcap.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ether.h>
 #include <netinet/ip6.h>
@@ -20,6 +21,11 @@ using namespace std;
     ((optarg == NULL && optind < argc && argv[optind][0] != '-') \
      ? (bool) (optarg = argv[optind++]) \
      : (optarg != NULL))
+
+#define MAC_ADDR_STR(mac_addr, str) \
+    sprintf(str, "%02x:%02x:%02x:%02x:%02x:%02x", \
+            mac_addr[0], mac_addr[1], mac_addr[2], \
+            mac_addr[3], mac_addr[4], mac_addr[5])
 
 #define MAX_PORT 65535
 

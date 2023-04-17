@@ -56,8 +56,6 @@ pcap_t* create_pcap_handle(char* device, char* filter) {
 }
 
 void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_char *packetptr) {
-    
-    cout << "Packet captured pico" << endl;
 
     // Convert the packet timestamp to a time_t structure
     time_t timestamp_sec = packethdr->ts.tv_sec;
@@ -80,14 +78,8 @@ void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_c
     struct ether_header *eth_header = (struct ether_header *) packetptr;
     char src_mac[18];
     char dst_mac[18];
-    snprintf(src_mac, 18, "%02x:%02x:%02x:%02x:%02x:%02x",
-         eth_header->ether_shost[0], eth_header->ether_shost[1],
-         eth_header->ether_shost[2], eth_header->ether_shost[3],
-         eth_header->ether_shost[4], eth_header->ether_shost[5]);
-    snprintf(dst_mac, 18, "%02x:%02x:%02x:%02x:%02x:%02x",
-            eth_header->ether_dhost[0], eth_header->ether_dhost[1],
-            eth_header->ether_dhost[2], eth_header->ether_dhost[3],
-            eth_header->ether_dhost[4], eth_header->ether_dhost[5]);
+    MAC_ADDR_STR(eth_header->ether_shost, src_mac);
+    MAC_ADDR_STR(eth_header->ether_dhost, dst_mac);
     cout << "src MAC: " << src_mac << endl;
     cout << "dst MAC: " << dst_mac << endl;
 
@@ -106,10 +98,18 @@ void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_c
         cout << "dst IP: " << dst_ip << endl;
         if (ip_header->ip_p == IPPROTO_TCP) {
             // TCP
-            cout << "TCP" << endl;
+            struct tcphdr *tcp_header = (struct tcphdr *) (packetptr + sizeof(struct ether_header) + sizeof(struct ip));
+            uint16_t src_port = ntohs(tcp_header->th_sport);
+            uint16_t dst_port = ntohs(tcp_header->th_dport);
+            cout << "src port: " << src_port << endl;
+            cout << "dst port: " << dst_port << endl;
         } else if (ip_header->ip_p == IPPROTO_UDP) {
             // UDP
-            cout << "UDP" << endl;
+            struct udphdr *udp_header = (struct udphdr *) (packetptr + sizeof(struct ether_header) + sizeof(struct ip));
+            uint16_t src_port = ntohs(udp_header->uh_sport);
+            uint16_t dst_port = ntohs(udp_header->uh_dport);
+            cout << "src port: " << src_port << endl;
+            cout << "dst port: " << dst_port << endl;
         } else if (ip_header->ip_p == IPPROTO_ICMP) {
             // ICMP
             cout << "ICMP" << endl;
@@ -126,10 +126,18 @@ void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_c
         cout << "dst IP: " << dst_ip6 << endl;
         if (ip6_header->ip6_nxt == IPPROTO_TCP) {
             // TCP
-            cout << "TCP6" << endl;
+            struct tcphdr *tcp_header = (struct tcphdr *) (packetptr + sizeof(struct ether_header) + sizeof(struct ip));
+            uint16_t src_port = ntohs(tcp_header->th_sport);
+            uint16_t dst_port = ntohs(tcp_header->th_dport);
+            cout << "src port: " << src_port << endl;
+            cout << "dst port: " << dst_port << endl;
         } else if (ip6_header->ip6_nxt == IPPROTO_UDP) {
             // UDP
-            cout << "UDP6" << endl;
+            struct tcphdr *tcp_header = (struct tcphdr *) (packetptr + sizeof(struct ether_header) + sizeof(struct ip));
+            uint16_t src_port = ntohs(tcp_header->th_sport);
+            uint16_t dst_port = ntohs(tcp_header->th_dport);
+            cout << "src port: " << src_port << endl;
+            cout << "dst port: " << dst_port << endl;
         } else if (ip6_header->ip6_nxt == IPPROTO_ICMPV6) {
             // ICMPv6
             cout << "ICMPv6" << endl;
