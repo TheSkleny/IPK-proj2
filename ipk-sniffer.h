@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <ctime>
 #include <pcap.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
@@ -30,3 +31,10 @@ typedef struct {
 
 options_t options;
 pcap_t* handle;
+
+
+void signal_handler(int signum);
+pcap_t* create_pcap_handle(char* device, char* filter);
+void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_char *packetptr);
+string create_filter(options_t options);
+

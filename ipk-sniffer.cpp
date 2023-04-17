@@ -23,7 +23,6 @@ void signal_handler(int signum) {
 pcap_t* create_pcap_handle(char* device, char* filter) {
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t *handle = NULL;
-    pcap_if_t* devices = NULL;
     struct bpf_program bpf;
     bpf_u_int32 netmask;
     bpf_u_int32 srcip;
@@ -57,7 +56,94 @@ pcap_t* create_pcap_handle(char* device, char* filter) {
 }
 
 void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_char *packetptr) {
+    
     cout << "Packet captured pico" << endl;
+
+    // Convert the packet timestamp to a time_t structure
+    time_t timestamp_sec = packethdr->ts.tv_sec;
+    struct tm *tm_info = localtime(&timestamp_sec);
+
+    // Print the timestamp
+    char timestamp[80];
+    strftime(timestamp, 80, "%Y-%m-%dT%H:%M:%S", tm_info);
+    char milliseconds[5];
+    snprintf(milliseconds, sizeof(milliseconds), ".%03ld", packethdr->ts.tv_usec);
+    strncat(timestamp, milliseconds, 5);
+    char timezone[8];
+    strftime(timezone, sizeof(timezone), "%z", tm_info);
+    strncat(timestamp, timezone, 8);
+
+    
+    cout << "timestamp: " << timestamp << endl;
+
+    //Print source and destination MAC addresses
+    struct ether_header *eth_header = (struct ether_header *) packetptr;
+    char src_mac[18];
+    char dst_mac[18];
+    snprintf(src_mac, 18, "%02x:%02x:%02x:%02x:%02x:%02x",
+         eth_header->ether_shost[0], eth_header->ether_shost[1],
+         eth_header->ether_shost[2], eth_header->ether_shost[3],
+         eth_header->ether_shost[4], eth_header->ether_shost[5]);
+    snprintf(dst_mac, 18, "%02x:%02x:%02x:%02x:%02x:%02x",
+            eth_header->ether_dhost[0], eth_header->ether_dhost[1],
+            eth_header->ether_dhost[2], eth_header->ether_dhost[3],
+            eth_header->ether_dhost[4], eth_header->ether_dhost[5]);
+    cout << "src MAC: " << src_mac << endl;
+    cout << "dst MAC: " << dst_mac << endl;
+
+    // Print the packet length
+    cout << "frame length: " << packethdr->len << endl;
+
+    uint16_t eth_type = ntohs(eth_header->ether_type);
+    if (eth_type == ETHERTYPE_IP) {
+        // IPv4
+        struct ip *ip_header = (struct ip *) (packetptr + sizeof(struct ether_header));
+        char src_ip[INET_ADDRSTRLEN];
+        char dst_ip[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &(ip_header->ip_src), src_ip, INET_ADDRSTRLEN);
+        inet_ntop(AF_INET, &(ip_header->ip_dst), dst_ip, INET_ADDRSTRLEN);
+        cout << "src IP: " << src_ip << endl;
+        cout << "dst IP: " << dst_ip << endl;
+        if (ip_header->ip_p == IPPROTO_TCP) {
+            // TCP
+            cout << "TCP" << endl;
+        } else if (ip_header->ip_p == IPPROTO_UDP) {
+            // UDP
+            cout << "UDP" << endl;
+        } else if (ip_header->ip_p == IPPROTO_ICMP) {
+            // ICMP
+            cout << "ICMP" << endl;
+        }
+    } else if (eth_type == ETHERTYPE_IPV6) {
+        // IPv6
+        cout << "IPv6" << endl;
+        struct ip6_hdr *ip6_header = (struct ip6_hdr *) (packetptr + sizeof(struct ether_header));
+        char src_ip6[INET6_ADDRSTRLEN];
+        char dst_ip6[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET6, &(ip6_header->ip6_src), src_ip6, INET6_ADDRSTRLEN);
+        inet_ntop(AF_INET6, &(ip6_header->ip6_dst), dst_ip6, INET6_ADDRSTRLEN);
+        cout << "src IP: " << src_ip6 << endl;
+        cout << "dst IP: " << dst_ip6 << endl;
+        if (ip6_header->ip6_nxt == IPPROTO_TCP) {
+            // TCP
+            cout << "TCP6" << endl;
+        } else if (ip6_header->ip6_nxt == IPPROTO_UDP) {
+            // UDP
+            cout << "UDP6" << endl;
+        } else if (ip6_header->ip6_nxt == IPPROTO_ICMPV6) {
+            // ICMPv6
+            cout << "ICMPv6" << endl;
+        }
+    } else if (eth_type == ETHERTYPE_ARP) {
+        // ARP
+        cout << "ARP" << endl;
+    }
+    else {
+        cout << "Unknown" << endl;
+    }
+
+
+    
 }
 
 string create_filter(options_t options){
@@ -313,17 +399,29 @@ int main(int argc, char* argv[]) {
     else {
         filter = create_filter(options);
     }
-    cout << "Filter: " << filter << endl;
+    //cout << "Filter: " << filter << endl;
     
+
+
+
+
     handle = create_pcap_handle((char *)options.interface_name.c_str(), (char *)filter.c_str());
     if(handle == NULL) {
         return 1;
     }
-    
+    int link_type;
+    if ((link_type = pcap_datalink(handle)) < 0) {
+        cerr << "pcap_datalink():" << pcap_geterr(handle) << endl;
+        return -1;
+    }
+    if (link_type != DLT_EN10MB) {
+        cerr << "This program only supports Ethernet." << endl;
+        return -1;
+    }
 
 
     if (pcap_loop(handle, options.num, packet_handler, (u_char*)NULL) < 0) {
-        cerr << "pcap_loop failed:" << pcap_geterr(handle) << endl;
+        cerr << "pcap_loop():" << pcap_geterr(handle) << endl;
 	    return -1;
     }
 
