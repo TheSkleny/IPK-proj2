@@ -6,6 +6,7 @@
 #include <cstring>
 #include <ctime>
 #include <pcap.h>
+#include <iomanip>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
@@ -28,6 +29,7 @@ using namespace std;
             mac_addr[3], mac_addr[4], mac_addr[5])
 
 #define MAX_PORT 65535
+#define BYTES_PER_LINE 16
 
 typedef struct {
     string interface_name, arp, icmp4, icmp6, igmp, mld, tcp, udp, ndp;

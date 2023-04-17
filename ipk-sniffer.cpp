@@ -103,6 +103,8 @@ void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_c
             uint16_t dst_port = ntohs(tcp_header->th_dport);
             cout << "src port: " << src_port << endl;
             cout << "dst port: " << dst_port << endl;
+        
+            
         } else if (ip_header->ip_p == IPPROTO_UDP) {
             // UDP
             struct udphdr *udp_header = (struct udphdr *) (packetptr + sizeof(struct ether_header) + sizeof(struct ip));
@@ -149,6 +151,31 @@ void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_c
     else {
         cout << "Unknown" << endl;
     }
+    printf("\n");
+    unsigned int byte_offset = 0;
+    while (byte_offset < packethdr->len) {
+        int bytes_remaining = packethdr->len - byte_offset;
+        int bytes_to_print = bytes_remaining < BYTES_PER_LINE ? bytes_remaining : BYTES_PER_LINE;header
+        printf("0x%04x: ", byte_offset);
+        for (int i = 0; i < bytes_to_print; i++) {
+            printf("%02x ", packetptr[byte_offset + i]);
+        }
+        for (int i = 0; i < BYTES_PER_LINE - bytes_to_print; i++) {
+            printf("   ");
+        }
+        printf(" ");
+        for (int i = 0; i < bytes_to_print; i++) {
+            char c = packetptr[byte_offset + i];
+            if (isprint(c)) {
+                printf("%c", c);
+            } else {
+                printf(".");
+            }
+        }
+        printf("\n");
+        byte_offset += bytes_to_print;
+    }
+    printf("\n");
 
 
     
