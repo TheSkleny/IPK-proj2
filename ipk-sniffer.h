@@ -1,3 +1,7 @@
+// IPK project 2 - network sniffer - header file
+// Author: David Sklenář - xsklen14
+// Date: 2023/03/27
+
 #include <getopt.h>
 #include <signal.h>
 #include <iostream>
@@ -41,8 +45,34 @@ options_t options;
 pcap_t* handle;
 
 
+/**
+    * Function for handling Ctrl+C interrupt
+    * @param signum - number of signal
+*/
 void signal_handler(int signum);
+
+/**
+    * Function for creating libpcap handle.
+    * @param device - network interface name
+    * @param filter - packet filter expression
+    * @return pcap_t* - libpcap handle
+    * @return NULL - error
+    * @source - https://vichargrave.github.io/programming/develop-a-packet-sniffer-with-libpcap/#build-and-run-the-sniffer
+*/
 pcap_t* create_pcap_handle(char* device, char* filter);
+
+/**
+    * Function for handling packets captured by libpcap.
+    * @param user - user-defined pointer passed to pcap_loop()
+    * @param packethdr - pointer to the packet header struct
+    * @param packetptr - pointer to the packet data buffer
+*/
 void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_char *packetptr);
+
+/**
+    * Create packet filter expression based on options.
+    * @param options - struct containing filter options
+    * @return string - packet filter expression
+*/
 string create_filter(options_t options);
 

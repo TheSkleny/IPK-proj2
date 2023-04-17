@@ -4,7 +4,9 @@
 
 #include "ipk-sniffer.h"
 
-
+/**
+    * Function for handling Ctrl+C interrupt
+*/
 void signal_handler(int signum) {
     // Terminate program
     pcap_close(handle);
@@ -12,13 +14,8 @@ void signal_handler(int signum) {
 }
 
 
-/*
+/**
     * Function for creating libpcap handle.
-    * @param device - network interface name
-    * @param filter - packet filter expression
-    * @return pcap_t* - libpcap handle
-    * @return NULL - error
-    * @source - https://vichargrave.github.io/programming/develop-a-packet-sniffer-with-libpcap/#build-and-run-the-sniffer
 */
 pcap_t* create_pcap_handle(char* device, char* filter) {
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -27,26 +24,26 @@ pcap_t* create_pcap_handle(char* device, char* filter) {
     bpf_u_int32 netmask;
     bpf_u_int32 srcip;
 
-    // Get network device source IP address and netmask.
+    // Get network device source IP address and netmask
     if (pcap_lookupnet(device, &srcip, &netmask, errbuf) == PCAP_ERROR) {
         cerr << "pcap_lookupnet(): " << errbuf << endl;
         return NULL;
     }
 
-    // Open the device for live capture.
+    // Open the device for live capture
     handle = pcap_open_live(device, BUFSIZ, 1, 1000, errbuf);
     if (handle == NULL) {
         cerr << "pcap_open_live(): " << errbuf << endl;
         return NULL;
     }
 
-    // Convert the packet filter epxression into a packet filter binary.
+    // Convert the packet filter epxression into a packet filter
     if (pcap_compile(handle, &bpf, filter, 0, netmask) == PCAP_ERROR) {
         cerr << "pcap_compile(): " << pcap_geterr(handle) << endl;
         return NULL;
     }
 
-    // Bind the packet filter to the libpcap handle.
+    // Bind the packet filter to the libpcap handle
     if (pcap_setfilter(handle, &bpf) == PCAP_ERROR) {
         cerr << "pcap_setfilter(): " << pcap_geterr(handle) << endl;
         return NULL;
@@ -55,6 +52,10 @@ pcap_t* create_pcap_handle(char* device, char* filter) {
     return handle;
 }
 
+
+/**
+    * Function for handling packets captured by libpcap.
+*/
 void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_char *packetptr) {
 
     // Convert the packet timestamp to a time_t structure
@@ -70,8 +71,6 @@ void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_c
     char timezone[8];
     strftime(timezone, sizeof(timezone), "%z", tm_info);
     strncat(timestamp, timezone, 8);
-
-    
     cout << "timestamp: " << timestamp << endl;
 
     //Print source and destination MAC addresses
@@ -149,38 +148,41 @@ void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_c
         cout << "ARP" << endl;
     }
     else {
-        cout << "Unknown" << endl;
+        cout << "Unknown protocol" << endl;
     }
-    printf("\n");
+
+    // printing data
+    cout << endl;
     unsigned int byte_offset = 0;
     while (byte_offset < packethdr->len) {
-        int bytes_remaining = packethdr->len - byte_offset;
-        int bytes_to_print = bytes_remaining < BYTES_PER_LINE ? bytes_remaining : BYTES_PER_LINE;header
-        printf("0x%04x: ", byte_offset);
+        int remaining_bytes = packethdr->len - byte_offset;
+        int bytes_to_print = remaining_bytes < BYTES_PER_LINE ? remaining_bytes : BYTES_PER_LINE;
+        cout << hex << setfill('0') << setw(4) << byte_offset << ": ";
         for (int i = 0; i < bytes_to_print; i++) {
-            printf("%02x ", packetptr[byte_offset + i]);
+            cout << hex << setfill('0') << setw(2) << static_cast<int>(packetptr[byte_offset + i]) << " ";
         }
         for (int i = 0; i < BYTES_PER_LINE - bytes_to_print; i++) {
-            printf("   ");
+            cout << "   ";
         }
-        printf(" ");
+        cout << " ";
         for (int i = 0; i < bytes_to_print; i++) {
             char c = packetptr[byte_offset + i];
             if (isprint(c)) {
-                printf("%c", c);
+                cout << c;
             } else {
-                printf(".");
+                cout << ".";
             }
         }
-        printf("\n");
+        cout << endl;
         byte_offset += bytes_to_print;
     }
-    printf("\n");
-
-
-    
+    cout << endl;
 }
 
+
+/**
+    * Create packet filter expression based on options.
+*/
 string create_filter(options_t options){
     string filter = "";
     bool first = true;
@@ -303,7 +305,6 @@ int main(int argc, char* argv[]) {
     options.udp = "";
     options.num = 1;
     while ((opt = getopt_long(argc, argv, "i::p:tua46gmdn:", long_options, &option_index)) != -1) {
-        //cout << "option: " << static_cast<char>(opt) << endl;
         switch (opt) {
         case 'i':
             if (OPTIONAL_ARGUMENT_IS_PRESENT) {
@@ -315,7 +316,8 @@ int main(int argc, char* argv[]) {
                 cerr << "Error: Port is already set." << endl;
                 return 1;
             }
-            options.port = atoi(optarg);
+            char *ptr;
+            options.port = strtol(optarg, &ptr, 10);
             break;
         case 't':
             if (options.tcp != "") {
@@ -392,6 +394,8 @@ int main(int argc, char* argv[]) {
         }
 
     }
+
+    // if something is wrong with user input print all available interfaces
     if (options.interface_name == "") {
         char error_buffer[PCAP_ERRBUF_SIZE];
         pcap_if_t* all_interfaces;
@@ -412,6 +416,7 @@ int main(int argc, char* argv[]) {
 
     signal(SIGINT, signal_handler);
 
+    // port correct format handling
     if (options.port != -1 && (options.port < 0 || options.port > MAX_PORT)) {
         cerr << "Invalid port number: " << options.port << endl;
         return 1;
@@ -426,6 +431,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // apply default filter if no argument is given
     if (options.tcp == "" && options.udp == "" && options.arp == "" && 
         options.icmp4 == "" && options.icmp6 == "" && options.igmp == "" && 
         options.mld == "" && options.ndp == "") {
@@ -434,16 +440,15 @@ int main(int argc, char* argv[]) {
     else {
         filter = create_filter(options);
     }
-    //cout << "Filter: " << filter << endl;
     
 
-
-
-
+    // open interface for listening
     handle = create_pcap_handle((char *)options.interface_name.c_str(), (char *)filter.c_str());
     if(handle == NULL) {
         return 1;
     }
+
+    //check used datalink protocol
     int link_type;
     if ((link_type = pcap_datalink(handle)) < 0) {
         cerr << "pcap_datalink():" << pcap_geterr(handle) << endl;
@@ -454,7 +459,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-
+    // packet capturing loop
     if (pcap_loop(handle, options.num, packet_handler, (u_char*)NULL) < 0) {
         cerr << "pcap_loop():" << pcap_geterr(handle) << endl;
 	    return -1;
