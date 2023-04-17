@@ -57,20 +57,18 @@ pcap_t* create_pcap_handle(char* device, char* filter) {
     * Function for handling packets captured by libpcap.
 */
 void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_char *packetptr) {
-
+    if (user == NULL){} //dummy condition just to get rid of warning "unused variable *user"
     // Convert the packet timestamp to a time_t structure
     time_t timestamp_sec = packethdr->ts.tv_sec;
     struct tm *tm_info = localtime(&timestamp_sec);
 
     // Print the timestamp
     char timestamp[80];
-    strftime(timestamp, 80, "%Y-%m-%dT%H:%M:%S", tm_info);
-    char milliseconds[5];
-    snprintf(milliseconds, sizeof(milliseconds), ".%03ld", packethdr->ts.tv_usec);
-    strncat(timestamp, milliseconds, 5);
-    char timezone[8];
-    strftime(timezone, sizeof(timezone), "%z", tm_info);
-    strncat(timestamp, timezone, 8);
+    snprintf(timestamp, 80, "%04d-%02d-%02dT%02d:%02d:%02d.%03ld%+03ld:%02ld", 
+         tm_info->tm_year+1900, tm_info->tm_mon+1, tm_info->tm_mday, 
+         tm_info->tm_hour, tm_info->tm_min, tm_info->tm_sec, 
+         packethdr->ts.tv_usec / 1000, tm_info->tm_gmtoff / 3600, 
+         (abs(tm_info->tm_gmtoff) % 3600) / 60);
     cout << "timestamp: " << timestamp << endl;
 
     //Print source and destination MAC addresses
@@ -112,12 +110,10 @@ void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_c
             cout << "src port: " << src_port << endl;
             cout << "dst port: " << dst_port << endl;
         } else if (ip_header->ip_p == IPPROTO_ICMP) {
-            // ICMP
-            cout << "ICMP" << endl;
+            // ICMP - nothing to add, because it does not work with ports
         }
     } else if (eth_type == ETHERTYPE_IPV6) {
         // IPv6
-        cout << "IPv6" << endl;
         struct ip6_hdr *ip6_header = (struct ip6_hdr *) (packetptr + sizeof(struct ether_header));
         char src_ip6[INET6_ADDRSTRLEN];
         char dst_ip6[INET6_ADDRSTRLEN];
@@ -140,12 +136,18 @@ void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_c
             cout << "src port: " << src_port << endl;
             cout << "dst port: " << dst_port << endl;
         } else if (ip6_header->ip6_nxt == IPPROTO_ICMPV6) {
-            // ICMPv6
-            cout << "ICMPv6" << endl;
+            // ICMPv6 - nothing to add, does not work with ports, ndp and mld should be taken care of in filter for pcap_compile
         }
     } else if (eth_type == ETHERTYPE_ARP) {
         // ARP
-        cout << "ARP" << endl;
+        struct ether_arp *arp_header = (struct ether_arp *) (packetptr + sizeof(struct ether_header));
+        char src_ip[INET_ADDRSTRLEN];
+        char dst_ip[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &(arp_header->arp_spa), src_ip, INET_ADDRSTRLEN);
+        inet_ntop(AF_INET, &(arp_header->arp_tpa), dst_ip, INET_ADDRSTRLEN);
+        cout << "src IP: " << src_ip << endl;
+        cout << "dst IP: " << dst_ip << endl;
+
     }
     else {
         cout << "Unknown protocol" << endl;
@@ -204,10 +206,10 @@ string create_filter(options_t options){
     }
     if (options.icmp6 != "") {
         if (first) {
-            filter += "icmp6";
+            filter += "(icmp6[0] == 128 or icmp6[0] == 129)";
             first = false;
         } else {
-            filter += " or icmp6";
+            filter += " or (icmp6[0] == 128 or icmp6[0] == 129)";
         }
     }
     if (options.igmp != "") {
@@ -220,10 +222,10 @@ string create_filter(options_t options){
     }
     if (options.mld != "") {
         if (first) {
-            filter += "(icmp6 and icmp6[0] == 143)";
+            filter += "(icmp6[0] == 130 or icmp6[0] == 131 or icmp6[0] == 132 or icmp6[0] == 143)";
             first = false;
         } else {
-            filter += " or (icmp6 and icmp6[0] == 143)";
+            filter += " or (icmp6[0] == 130 or icmp6[0] == 131 or icmp6[0] == 132 or icmp6[0] == 143)";
         }
     }
     if (options.tcp != "") {
@@ -262,10 +264,10 @@ string create_filter(options_t options){
     }
     if (options.ndp != "") {
         if (first) {
-            filter += "(icmp6 and (icmp6[0] == 135 or icmp6[0] == 136 or icmp6[0] == 137))";
+            filter += "(icmp6[0] == 133 or icmp6[0] == 134 or icmp6[0] == 135 or icmp6[0] == 136 or icmp6[0] == 137)";
             first = false;
         } else {
-            filter += " or (icmp6 and (icmp6[0] == 135 or icmp6[0] == 136 or icmp6[0] == 137))";
+            filter += " or (icmp6[0] == 133 or icmp6[0] == 134 or icmp6[0] == 135 or icmp6[0] == 136 or icmp6[0] == 137)";
         }
     }
     return filter;
@@ -435,7 +437,7 @@ int main(int argc, char* argv[]) {
     if (options.tcp == "" && options.udp == "" && options.arp == "" && 
         options.icmp4 == "" && options.icmp6 == "" && options.igmp == "" && 
         options.mld == "" && options.ndp == "") {
-        filter = "tcp or udp or arp or icmp or icmp6 or igmp or (icmp6 and icmp6[0] == 143) or (icmp6 and (icmp6[0] == 135 or icmp6[0] == 136 or icmp6[0] == 137))";
+        filter = "tcp or udp or arp or icmp or (icmp6[0] == 128 or icmp6[0] == 129) or igmp or (icmp6[0] == 130 or icmp6[0] == 131 or icmp6[0] == 132 or icmp6[0] == 143) or (icmp6[0] == 133 or icmp6[0] == 134 or icmp6[0] == 135 or icmp6[0] == 136 or icmp6[0] == 137)";
     }
     else {
         filter = create_filter(options);
