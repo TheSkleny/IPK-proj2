@@ -81,7 +81,7 @@ void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_c
     cout << "dst MAC: " << dst_mac << endl;
 
     // Print the packet length
-    cout << "frame length: " << packethdr->len << endl;
+    cout << dec << "frame length: " << packethdr->len << " bytes" << endl;
 
     uint16_t eth_type = ntohs(eth_header->ether_type);
     if (eth_type == ETHERTYPE_IP) {
@@ -159,7 +159,7 @@ void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_c
     while (byte_offset < packethdr->len) {
         int remaining_bytes = packethdr->len - byte_offset;
         int bytes_to_print = remaining_bytes < BYTES_PER_LINE ? remaining_bytes : BYTES_PER_LINE;
-        cout << hex << setfill('0') << setw(4) << byte_offset << ": ";
+        cout << "0x" << hex << setfill('0') << setw(4) << byte_offset << ": ";
         for (int i = 0; i < bytes_to_print; i++) {
             cout << hex << setfill('0') << setw(2) << static_cast<int>(packetptr[byte_offset + i]) << " ";
         }
